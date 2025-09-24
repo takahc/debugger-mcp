@@ -86,7 +86,7 @@ async function startDapApiServer(port: number): Promise<void> {
         app.use('/api/dap', dapApiServer.getRouter());
 
         // Health check endpoint
-        app.get('/health', (req, res) => {
+        app.get('/health', (req: express.Request, res: express.Response) => {
             res.json({ status: 'ok', timestamp: new Date().toISOString() });
         });
 
@@ -100,7 +100,7 @@ async function startDapApiServer(port: number): Promise<void> {
             }
         });
 
-        httpServer.on('error', (error) => {
+        httpServer?.on('error', (error) => {
             reject(error);
         });
     });

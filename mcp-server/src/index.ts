@@ -204,11 +204,6 @@ const server = new Server(
   {
     name: 'debugger-mcp-server',
     version: '0.1.0',
-  },
-  {
-    capabilities: {
-      tools: {}
-    }
   }
 );
 
@@ -567,92 +562,92 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       case 'debug_get_session':
-        result = await dapClient.getSession(args.sessionId);
+        result = await dapClient.getSession(args.sessionId as string);
         break;
 
       case 'debug_delete_session':
-        result = await dapClient.deleteSession(args.sessionId);
+        result = await dapClient.deleteSession(args.sessionId as string);
         break;
 
       // Debug operations
       case 'debug_initialize':
-        result = await dapClient.initialize(args.sessionId);
+        result = await dapClient.initialize(args.sessionId as string);
         break;
 
       case 'debug_launch':
-        result = await dapClient.launch(args.sessionId, args);
+        result = await dapClient.launch(args.sessionId as string, args);
         break;
 
       case 'debug_attach':
-        result = await dapClient.attach(args.sessionId, args);
+        result = await dapClient.attach(args.sessionId as string, args);
         break;
 
       case 'debug_disconnect':
-        result = await dapClient.disconnect(args.sessionId);
+        result = await dapClient.disconnect(args.sessionId as string);
         break;
 
       case 'debug_terminate':
-        result = await dapClient.terminate(args.sessionId);
+        result = await dapClient.terminate(args.sessionId as string);
         break;
 
       // Execution control
       case 'debug_continue':
-        result = await dapClient.continue(args.sessionId);
+        result = await dapClient.continue(args.sessionId as string);
         break;
 
       case 'debug_pause':
-        result = await dapClient.pause(args.sessionId);
+        result = await dapClient.pause(args.sessionId as string);
         break;
 
       case 'debug_step_over':
-        result = await dapClient.next(args.sessionId);
+        result = await dapClient.next(args.sessionId as string);
         break;
 
       case 'debug_step_into':
-        result = await dapClient.stepIn(args.sessionId);
+        result = await dapClient.stepIn(args.sessionId as string);
         break;
 
       case 'debug_step_out':
-        result = await dapClient.stepOut(args.sessionId);
+        result = await dapClient.stepOut(args.sessionId as string);
         break;
 
       // Breakpoints
       case 'debug_set_breakpoints':
-        result = await dapClient.setBreakpoints(args.sessionId, args.source, args.breakpoints);
+        result = await dapClient.setBreakpoints(args.sessionId as string, args.source, args.breakpoints as any[]);
         break;
 
       case 'debug_set_function_breakpoints':
-        result = await dapClient.setFunctionBreakpoints(args.sessionId, args.breakpoints);
+        result = await dapClient.setFunctionBreakpoints(args.sessionId as string, args.breakpoints as any[]);
         break;
 
       case 'debug_set_exception_breakpoints':
-        result = await dapClient.setExceptionBreakpoints(args.sessionId, args.filters);
+        result = await dapClient.setExceptionBreakpoints(args.sessionId as string, args.filters as string[]);
         break;
 
       // Variable inspection
       case 'debug_get_threads':
-        result = await dapClient.getThreads(args.sessionId);
+        result = await dapClient.getThreads(args.sessionId as string);
         break;
 
       case 'debug_get_stack_trace':
-        result = await dapClient.getStackTrace(args.sessionId, args.threadId);
+        result = await dapClient.getStackTrace(args.sessionId as string, args.threadId as number);
         break;
 
       case 'debug_get_scopes':
-        result = await dapClient.getScopes(args.sessionId, args.frameId);
+        result = await dapClient.getScopes(args.sessionId as string, args.frameId as number);
         break;
 
       case 'debug_get_variables':
-        result = await dapClient.getVariables(args.sessionId, args.variablesReference);
+        result = await dapClient.getVariables(args.sessionId as string, args.variablesReference as number);
         break;
 
       case 'debug_evaluate':
-        result = await dapClient.evaluate(args.sessionId, args.expression, args.frameId, args.context);
+        result = await dapClient.evaluate(args.sessionId as string, args.expression as string, args.frameId as number, args.context as string);
         break;
 
       // Debug console
       case 'debug_send_output':
-        result = await dapClient.sendOutput(args.sessionId, args.output, args.category);
+        result = await dapClient.sendOutput(args.sessionId as string, args.output as string, args.category as string);
         break;
 
       // Health check

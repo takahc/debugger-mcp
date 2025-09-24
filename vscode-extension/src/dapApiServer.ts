@@ -222,13 +222,13 @@ export class DapApiServer {
             config.request = 'launch';
 
             const started = await vscode.debug.startDebugging(
-                session.workspaceFolder,
+                session.workspaceFolder || undefined,
                 config
             );
 
             if (started) {
                 // Find the active debug session
-                session.debugSession = vscode.debug.activeDebugSession;
+                session.debugSession = vscode.debug.activeDebugSession || null;
                 res.json({ status: 'launched' });
             } else {
                 res.status(500).json({ error: 'Failed to start debug session' });
@@ -252,12 +252,12 @@ export class DapApiServer {
             config.request = 'attach';
 
             const started = await vscode.debug.startDebugging(
-                session.workspaceFolder,
+                session.workspaceFolder || undefined,
                 config
             );
 
             if (started) {
-                session.debugSession = vscode.debug.activeDebugSession;
+                session.debugSession = vscode.debug.activeDebugSession || null;
                 res.json({ status: 'attached' });
             } else {
                 res.status(500).json({ error: 'Failed to attach to debug target' });
@@ -427,7 +427,7 @@ export class DapApiServer {
             vscode.debug.addBreakpoints(vscodeBreakpoints);
 
             res.json({
-                breakpoints: vscodeBreakpoints.map((bp, index) => ({
+                breakpoints: vscodeBreakpoints.map((bp: vscode.SourceBreakpoint, index: number) => ({
                     id: index,
                     verified: true,
                     line: bp.location.range.start.line + 1,
@@ -466,7 +466,7 @@ export class DapApiServer {
             vscode.debug.addBreakpoints(vscodeBreakpoints);
 
             res.json({
-                breakpoints: vscodeBreakpoints.map((bp, index) => ({
+                breakpoints: vscodeBreakpoints.map((bp: vscode.FunctionBreakpoint, index: number) => ({
                     id: index,
                     verified: true,
                     name: bp.functionName

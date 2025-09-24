@@ -1,0 +1,37 @@
+{
+  "name": "debugger-mcp",
+  "version": "0.1.0",
+  "description": "VSCode Extension for debugging + MCP - A comprehensive debugging solution with DAP HTTP API and MCP integration",
+  "private": true,
+  "workspaces": [
+    "vscode-extension",
+    "mcp-server"
+  ],
+  "scripts": {
+    "build": "npm run build:vscode && npm run build:mcp",
+    "build:vscode": "cd vscode-extension && npm run compile",
+    "build:mcp": "cd mcp-server && npm run build",
+    "install:all": "npm install && cd vscode-extension && npm install && cd ../mcp-server && npm install",
+    "clean": "rm -rf vscode-extension/out mcp-server/dist",
+    "test:mcp": "cd mcp-server && echo '{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/list\", \"params\": {}}' | node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/takahc/debugger-mcp.git"
+  },
+  "keywords": [
+    "vscode",
+    "debug",
+    "debugger",
+    "dap",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "assistant"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
