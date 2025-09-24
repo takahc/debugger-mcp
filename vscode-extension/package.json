@@ -1,0 +1,42 @@
+{
+  "name": "debugger-mcp-extension",
+  "displayName": "Debugger MCP Extension",
+  "description": "VSCode extension that provides DAP operations via HTTP API for MCP integration",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "debuggerMcp.startServer",
+        "title": "Start Debugger MCP Server"
+      },
+      {
+        "command": "debuggerMcp.stopServer",
+        "title": "Stop Debugger MCP Server"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}
