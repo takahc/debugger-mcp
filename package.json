@@ -1,0 +1,15 @@
+{
+  "name": "debugger-mcp",
+  "version": "0.0.1",
+  "description": "VSCode Extension for debugging + MCP",
+  "scripts": {
+    "build": "npm run build:extension && npm run build:mcp",
+    "build:extension": "cd vscode-extension && npm install && npm run compile",
+    "build:mcp": "cd mcp-server && npm install && npm run build",
+    "start:mcp": "cd mcp-server && npm start",
+    "clean": "rm -rf vscode-extension/out vscode-extension/node_modules mcp-server/dist mcp-server/node_modules"
+  },
+  "keywords": ["vscode", "debugging", "mcp", "debug-adapter-protocol"],
+  "author": "takahc",
+  "license": "MIT"
+}
