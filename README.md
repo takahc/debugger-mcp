@@ -88,7 +88,39 @@ npm run build
 
 The HTTP API will be available at `http://localhost:3001/api/dap`
 
-### Using the MCP Server
+### Using with GitHub Copilot in VSCode
+
+To enable GitHub Copilot to use this MCP server for debugging operations:
+
+1. **Start the VSCode Extension** (as described above)
+2. **Configure MCP in VSCode**: Create or update `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "debugger-mcp": {
+      "command": "node",
+      "args": [
+        "./mcp-server/dist/index.js"
+      ],
+      "env": {
+        "DAP_API_URL": "http://localhost:3001"
+      }
+    }
+  }
+}
+```
+
+3. **Restart VSCode** to load the MCP configuration
+4. **GitHub Copilot** will now have access to 21 debugging tools including:
+   - Session management (create, list, delete debug sessions)
+   - Debug operations (launch, attach, disconnect, terminate)
+   - Execution control (continue, pause, step over/into/out)
+   - Breakpoint management (set source/function/exception breakpoints)
+   - Variable inspection (get threads, stack traces, scopes, variables)
+   - Expression evaluation and debug console output
+
+### Using the MCP Server with Other AI Assistants
 
 The MCP server can be used with any MCP-compatible AI assistant. Configure your AI assistant to use the MCP server:
 
