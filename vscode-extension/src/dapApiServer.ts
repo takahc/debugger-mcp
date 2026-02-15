@@ -501,14 +501,13 @@ export class DapApiServer {
             return;
         }
 
-        // VSCode doesn't expose thread information directly
-        // Return a mock thread for compatibility
-        res.json({
-            threads: [{
-                id: 1,
-                name: 'Main Thread'
-            }]
-        });
+        try {
+            // Use DAP customRequest to get threads
+            const response = await session.debugSession.customRequest('threads');
+            res.json(response);
+        } catch (error) {
+            res.status(500).json({ error: `Get threads failed: ${error}` });
+        }
     }
 
     private async getStackTrace(req: Request, res: Response): Promise<void> {
@@ -520,17 +519,17 @@ export class DapApiServer {
             return;
         }
 
-        // VSCode doesn't expose stack trace information directly via API
-        // This would typically be handled by the debug adapter protocol
-        res.json({
-            stackFrames: [{
-                id: 1,
-                name: 'main',
-                source: { path: '', name: 'Unknown' },
-                line: 1,
-                column: 1
-            }]
-        });
+        try {
+            // Use DAP customRequest to get stack trace
+            const response = await session.debugSession.customRequest('stackTrace', {
+                threadId: parseInt(threadId),
+                startFrame: 0,
+                levels: 20
+            });
+            res.json(response);
+        } catch (error) {
+            res.status(500).json({ error: `Get stack trace failed: ${error}` });
+        }
     }
 
     private async getScopes(req: Request, res: Response): Promise<void> {
@@ -542,21 +541,15 @@ export class DapApiServer {
             return;
         }
 
-        // Mock scopes response
-        res.json({
-            scopes: [
-                {
-                    name: 'Local',
-                    variablesReference: 1,
-                    expensive: false
-                },
-                {
-                    name: 'Global',
-                    variablesReference: 2,
-                    expensive: true
-                }
-            ]
-        });
+        try {
+            // Use DAP customRequest to get scopes
+            const response = await session.debugSession.customRequest('scopes', {
+                frameId: parseInt(frameId)
+            });
+            res.json(response);
+        } catch (error) {
+            res.status(500).json({ error: `Get scopes failed: ${error}` });
+        }
     }
 
     private async getVariables(req: Request, res: Response): Promise<void> {
@@ -568,15 +561,15 @@ export class DapApiServer {
             return;
         }
 
-        // Mock variables response
-        res.json({
-            variables: [{
-                name: 'example',
-                value: 'value',
-                type: 'string',
-                variablesReference: 0
-            }]
-        });
+        try {
+            // Use DAP customRequest to get variables
+            const response = await session.debugSession.customRequest('variables', {
+                variablesReference: parseInt(variablesReference)
+            });
+            res.json(response);
+        } catch (error) {
+            res.status(500).json({ error: `Get variables failed: ${error}` });
+        }
     }
 
     private async evaluate(req: Request, res: Response): Promise<void> {
@@ -596,13 +589,13 @@ export class DapApiServer {
         }
 
         try {
-            // VSCode doesn't expose evaluation API directly
-            // This would typically be handled by the debug adapter
-            res.json({
-                result: `Evaluation of "${expression}" not implemented`,
-                type: 'string',
-                variablesReference: 0
+            // Use DAP customRequest to evaluate expression
+            const response = await session.debugSession.customRequest('evaluate', {
+                expression,
+                frameId: frameId ? parseInt(frameId) : undefined,
+                context: context || 'watch'
             });
+            res.json(response);
         } catch (error) {
             res.status(500).json({ error: `Evaluation failed: ${error}` });
         }

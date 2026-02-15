@@ -20,7 +20,11 @@ The project consists of two main components:
   - Launch and attach operations
   - Execution control (continue, pause, step operations)
   - Breakpoint management (source, function, exception breakpoints)
-  - Variable inspection and evaluation
+  - **Real-time variable inspection using DAP customRequest API**
+  - **Thread information retrieval from debug adapter**
+  - **Stack trace inspection with configurable depth**
+  - **Variable scope exploration (local, global, closure variables)**
+  - **Expression evaluation in debug context**
   - Debug console integration
 
 ### MCP Server
