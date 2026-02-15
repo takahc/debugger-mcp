@@ -52,6 +52,13 @@ class DapApiClient {
     return response.data;
   }
 
+  // Launch configurations
+  async listLaunchConfigurations(workspaceFolderUri?: string): Promise<any> {
+    const params = workspaceFolderUri ? { workspaceFolderUri } : {};
+    const response = await axios.get(`${this.baseUrl}/api/dap/launch-configurations`, { params });
+    return response.data;
+  }
+
   // Debug operations
   async initialize(sessionId: string): Promise<any> {
     const response = await axios.post(`${this.baseUrl}/api/dap/sessions/${sessionId}/initialize`);
@@ -257,6 +264,18 @@ const tools: Tool[] = [
     }
   },
 
+  // Launch configurations
+  {
+    name: 'debug_list_launch_configurations',
+    description: 'List available debug configurations from workspace launch.json file',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceFolderUri: { type: 'string', description: 'Optional workspace folder URI to read launch.json from' }
+      }
+    }
+  },
+
   // Debug operations
   {
     name: 'debug_initialize',
@@ -271,12 +290,13 @@ const tools: Tool[] = [
   },
   {
     name: 'debug_launch',
-    description: 'Launch a debug session with specified configuration',
+    description: 'Launch a debug session with specified configuration or use a named configuration from launch.json',
     inputSchema: {
       type: 'object',
       properties: {
         sessionId: { type: 'string', description: 'Session ID' },
-        program: { type: 'string', description: 'Program to debug' },
+        configurationName: { type: 'string', description: 'Name of configuration from launch.json to use (optional)' },
+        program: { type: 'string', description: 'Program to debug (optional if using configurationName)' },
         args: { type: 'array', items: { type: 'string' }, description: 'Program arguments' },
         cwd: { type: 'string', description: 'Working directory' },
         env: { type: 'object', description: 'Environment variables' },
@@ -567,6 +587,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'debug_delete_session':
         result = await dapClient.deleteSession(args.sessionId as string);
+        break;
+
+      // Launch configurations
+      case 'debug_list_launch_configurations':
+        result = await dapClient.listLaunchConfigurations(args.workspaceFolderUri as string);
         break;
 
       // Debug operations

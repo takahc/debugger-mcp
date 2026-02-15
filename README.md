@@ -29,9 +29,9 @@ The project consists of two main components:
 
 ### MCP Server
 - Full MCP protocol implementation
-- 21 debugging tools available to AI assistants:
-  - Session management tools
-  - Debug operations (launch, attach, disconnect, terminate)
+- 22 debugging tools available to AI assistants:
+  - Session management tools (including launch.json configuration listing)
+  - Debug operations (launch with named configurations, attach, disconnect, terminate)
   - Execution control tools (continue, pause, step over/into/out)
   - Breakpoint tools (source, function, exception breakpoints)
   - Variable inspection tools (threads, stack trace, scopes, variables)

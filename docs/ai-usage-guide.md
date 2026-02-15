@@ -78,6 +78,73 @@ Expected Output:
 
 ---
 
+## Using Launch.json Configurations
+
+**NEW FEATURE**: You can now use debug configurations defined in your workspace's `.vscode/launch.json` file instead of specifying all parameters manually.
+
+### List Available Configurations
+
+First, check what configurations are available in your workspace:
+
+```
+Tool: debug_list_launch_configurations
+Input: {}
+```
+
+Expected Output:
+```json
+{
+  "configurations": [
+    {
+      "name": "Debug Node.js Program",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.js",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug Python Program",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py"
+    }
+  ],
+  "workspaceFolder": "file:///path/to/workspace"
+}
+```
+
+### Launch Using a Named Configuration
+
+Instead of specifying all debug parameters, you can reference a configuration by name:
+
+```
+Tool: debug_launch
+Input: {
+  "sessionId": "session-1",
+  "configurationName": "Debug Node.js Program"
+}
+```
+
+### Override Configuration Parameters
+
+You can also override specific parameters from the named configuration:
+
+```
+Tool: debug_launch
+Input: {
+  "sessionId": "session-1",
+  "configurationName": "Debug Node.js Program",
+  "args": ["--port", "3000"],
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
+```
+
+This will use the "Debug Node.js Program" configuration but override the args and env variables.
+
+---
+
 ## Complete Workflow: Node.js Application
 
 This example demonstrates a complete debugging session for a Node.js application.
@@ -566,13 +633,14 @@ Input: {
 | `debug_list_sessions` | List all sessions | None |
 | `debug_get_session` | Get session info | sessionId |
 | `debug_delete_session` | Delete session | sessionId |
+| `debug_list_launch_configurations` | List configurations from launch.json | None (optional: workspaceFolderUri) |
 
 ### Debug Control Tools
 
 | Tool | Purpose | Required Parameters |
 |------|---------|-------------------|
 | `debug_initialize` | Initialize session | sessionId |
-| `debug_launch` | Launch program | sessionId, program |
+| `debug_launch` | Launch program | sessionId (optional: configurationName or program) |
 | `debug_attach` | Attach to process | sessionId, (port or processId) |
 | `debug_disconnect` | Disconnect | sessionId |
 | `debug_terminate` | Terminate | sessionId |

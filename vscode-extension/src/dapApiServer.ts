@@ -1,11 +1,18 @@
 import * as vscode from 'vscode';
 import { Router, Request, Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface DapSession {
     id: string;
     debugSession: vscode.DebugSession | null;
     configuration: vscode.DebugConfiguration | null;
     workspaceFolder: vscode.WorkspaceFolder | null;
+}
+
+interface LaunchConfiguration {
+    version: string;
+    configurations: vscode.DebugConfiguration[];
 }
 
 export class DapApiServer {
@@ -39,6 +46,9 @@ export class DapApiServer {
         this.router.get('/sessions', this.listSessions.bind(this));
         this.router.get('/sessions/:sessionId', this.getSession.bind(this));
         this.router.delete('/sessions/:sessionId', this.deleteSession.bind(this));
+
+        // Launch configurations
+        this.router.get('/launch-configurations', this.listLaunchConfigurations.bind(this));
 
         // Debug operations
         this.router.post('/sessions/:sessionId/initialize', this.initialize.bind(this));
@@ -162,6 +172,67 @@ export class DapApiServer {
         res.json({ status: 'deleted' });
     }
 
+    // Helper function to read launch.json configurations
+    private async readLaunchConfigurations(workspaceFolder: vscode.WorkspaceFolder | null): Promise<vscode.DebugConfiguration[]> {
+        if (!workspaceFolder) {
+            // Try to get first workspace folder if none specified
+            const folders = vscode.workspace.workspaceFolders;
+            if (!folders || folders.length === 0) {
+                return [];
+            }
+            workspaceFolder = folders[0];
+        }
+
+        const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
+        
+        try {
+            if (fs.existsSync(launchJsonPath)) {
+                const content = fs.readFileSync(launchJsonPath, 'utf8');
+                // Remove JSON comments (lines starting with //)
+                const cleanedContent = content.split('\n')
+                    .filter(line => !line.trim().startsWith('//'))
+                    .join('\n');
+                const launchConfig: LaunchConfiguration = JSON.parse(cleanedContent);
+                return launchConfig.configurations || [];
+            }
+        } catch (error) {
+            console.error(`Failed to read launch.json: ${error}`);
+        }
+
+        return [];
+    }
+
+    // New endpoint to list available launch configurations
+    private async listLaunchConfigurations(req: Request, res: Response): Promise<void> {
+        try {
+            const { workspaceFolderUri } = req.query;
+            let workspaceFolder: vscode.WorkspaceFolder | null = null;
+
+            if (workspaceFolderUri && typeof workspaceFolderUri === 'string') {
+                const uri = vscode.Uri.parse(workspaceFolderUri);
+                workspaceFolder = vscode.workspace.getWorkspaceFolder(uri) || null;
+            }
+
+            const configurations = await this.readLaunchConfigurations(workspaceFolder);
+            
+            res.json({
+                configurations: configurations.map(config => ({
+                    name: config.name,
+                    type: config.type,
+                    request: config.request,
+                    // Include other relevant fields but filter out sensitive data
+                    program: config.program,
+                    cwd: config.cwd,
+                    args: config.args,
+                    env: config.env
+                })),
+                workspaceFolder: workspaceFolder?.uri.toString()
+            });
+        } catch (error) {
+            res.status(500).json({ error: `Failed to list launch configurations: ${error}` });
+        }
+    }
+
     // Debug operations
     private async initialize(req: Request, res: Response): Promise<void> {
         const { sessionId } = req.params;
@@ -218,7 +289,29 @@ export class DapApiServer {
         }
 
         try {
-            const config = { ...session.configuration, ...req.body };
+            let config: vscode.DebugConfiguration;
+            
+            // Check if configurationName is provided to use from launch.json
+            if (req.body.configurationName) {
+                const configurations = await this.readLaunchConfigurations(session.workspaceFolder);
+                const namedConfig = configurations.find(c => c.name === req.body.configurationName);
+                
+                if (!namedConfig) {
+                    res.status(404).json({ 
+                        error: `Configuration '${req.body.configurationName}' not found in launch.json`,
+                        availableConfigurations: configurations.map(c => c.name)
+                    });
+                    return;
+                }
+                
+                // Use the configuration from launch.json and merge with any overrides from request body
+                const { configurationName, ...overrides } = req.body;
+                config = { ...namedConfig, ...overrides };
+            } else {
+                // Use existing behavior: merge session configuration with request body
+                config = { ...session.configuration, ...req.body };
+            }
+            
             config.request = 'launch';
 
             const started = await vscode.debug.startDebugging(
@@ -229,7 +322,14 @@ export class DapApiServer {
             if (started) {
                 // Find the active debug session
                 session.debugSession = vscode.debug.activeDebugSession || null;
-                res.json({ status: 'launched' });
+                res.json({ 
+                    status: 'launched',
+                    configuration: {
+                        name: config.name,
+                        type: config.type,
+                        request: config.request
+                    }
+                });
             } else {
                 res.status(500).json({ error: 'Failed to start debug session' });
             }

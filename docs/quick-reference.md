@@ -12,12 +12,13 @@ This is a quick reference card for AI assistants using the debugger-mcp server. 
 
 ## 📋 Tool Categories
 
-### Session Management (5 tools)
+### Session Management (6 tools)
 - `debug_health_check` - Check server status
 - `debug_create_session` - Create new session
 - `debug_list_sessions` - List all sessions
 - `debug_get_session` - Get session details
 - `debug_delete_session` - Remove session
+- `debug_list_launch_configurations` - List launch.json configs
 
 ### Debug Control (5 tools)
 - `debug_initialize` - Initialize session
@@ -50,7 +51,20 @@ This is a quick reference card for AI assistants using the debugger-mcp server. 
 
 ## 🎯 Common Workflows
 
-### Basic Debug Session
+### Basic Debug Session (Using launch.json)
+```
+1. debug_list_launch_configurations({})
+   → See available configurations
+2. debug_create_session({ name: "Debug", type: "node", request: "launch" })
+   → Save sessionId
+3. debug_set_breakpoints({ sessionId, source: { path }, breakpoints: [{ line: 10 }] })
+4. debug_launch({ sessionId, configurationName: "Debug Node.js Program" })
+5. debug_continue({ sessionId })
+   → Hits breakpoint
+6. debug_terminate({ sessionId })
+```
+
+### Basic Debug Session (Manual Configuration)
 ```
 1. debug_create_session({ name: "Debug", type: "node", request: "launch" })
    → Save sessionId
