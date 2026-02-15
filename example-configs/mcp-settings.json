@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "debugger-mcp": {
+      "command": "node",
+      "args": ["./mcp-server/dist/index.js"],
+      "env": {
+        "DAP_API_URL": "http://localhost:3001"
+      }
+    }
+  }
+}
