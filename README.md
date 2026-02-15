@@ -174,6 +174,33 @@ The following debugging tools are available to AI assistants:
 #### Health Check
 - `debug_health_check`: Check if DAP API server is running
 
+## Documentation for AI Assistants
+
+**For AI assistants using this MCP server**, comprehensive usage guides are available:
+
+- **[AI Usage Guide](docs/ai-usage-guide.md)** - Complete step-by-step workflows with examples
+  - Quick start guide
+  - Complete Node.js debugging workflow
+  - Variable inspection workflows
+  - Advanced debugging scenarios
+  - Tool reference and common patterns
+  
+- **[Quick Reference](docs/quick-reference.md)** - Quick reference card for all tools
+  - 3-step quick start
+  - Tool categories and common parameters
+  - Common workflows and patterns
+  - Response structures and error handling
+
+- **[Variable Inspection Guide](docs/variable-inspection.md)** - Deep dive into variable inspection
+  - Implementation details for each inspection function
+  - Usage flows and examples
+  - Support for different debug adapters
+
+- **[GitHub Copilot Setup](docs/github-copilot-setup.md)** - Setup instructions for GitHub Copilot
+  - Configuration steps
+  - Available tools list
+  - Troubleshooting
+
 ## API Reference
 
 ### HTTP API Endpoints
