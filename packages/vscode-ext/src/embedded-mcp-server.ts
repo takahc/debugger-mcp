@@ -8,8 +8,13 @@ import { VscodeSessionFactory, VscodeDebugSessionAdapter } from "./vscode-dap-br
 import { randomUUID } from "node:crypto";
 
 /**
- * SessionFactory that delegates to VscodeSessionFactory.
- * Wraps launch/attach in a unified createSession() interface.
+ * SessionFactory for the VSCode extension.
+ *
+ * Because VSCode must start the debug session before we can wrap it in an
+ * IDebugSession, the actual vscode.debug.startDebugging() call happens inside
+ * the adapter's launch()/attach() methods rather than in createSession().
+ * createSession() just creates a placeholder that becomes fully live once
+ * launch() or attach() is called.
  */
 class VscodeMcpSessionFactory implements SessionFactory {
   constructor(private vscodeFactory: VscodeSessionFactory) {}
@@ -19,10 +24,8 @@ class VscodeMcpSessionFactory implements SessionFactory {
     _adapter: "python" | "node",
     config: Record<string, unknown>,
   ): Promise<IDebugSession> {
-    if (config["request"] === "attach") {
-      return this.vscodeFactory.createAndAttach(id, config);
-    }
-    return this.vscodeFactory.createAndLaunch(id, config);
+    // Return a deferred adapter. launch()/attach() will call VSCode APIs.
+    return this.vscodeFactory.createDeferred(id, config);
   }
 }
 

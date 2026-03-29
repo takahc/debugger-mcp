@@ -36,17 +36,22 @@ export class DebugSession extends EventEmitter implements IDebugSession {
       this.state = "running";
       this.emit("stateChange", this.state);
     });
-    this.client.on("event:terminated", () => {
+    const terminate = () => {
+      if (this.state === "terminated") return;
       this.state = "terminated";
       this.emit("stateChange", this.state);
-    });
+      this.emit("terminated");
+    };
+    this.client.on("event:terminated", terminate);
     this.client.on("event:output", (body: DP.OutputEvent["body"]) => {
       this.emit("output", body);
     });
-    this.client.on("close", () => {
-      this.state = "terminated";
-      this.emit("stateChange", this.state);
-    });
+    this.client.on("close", terminate);
+  }
+
+  /** Register a one-time handler that fires when the session ends. */
+  onTerminated(handler: () => void): void {
+    this.once("terminated", handler);
   }
 
   async initialize(adapterID: string): Promise<void> {

@@ -35,7 +35,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       if (embeddedServer) {
         const adapter = embeddedServer.vscodeFactory.getByVscodeId(session.id);
         if (adapter) {
-          adapter.onTerminated();
+          adapter.onTerminated_internal();
           embeddedServer.vscodeFactory.removeByVscodeId(session.id);
         }
       }

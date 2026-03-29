@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@debugger-mcp/core": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.10.2"
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "@vscode/debugadapter": "^1.68.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

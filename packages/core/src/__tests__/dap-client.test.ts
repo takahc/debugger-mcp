@@ -55,7 +55,7 @@ describe("DapClient", () => {
     transport._triggerMessage({
       seq: 100,
       type: "response",
-      request_seq: sent["seq"],
+      request_seq: sent["seq"] as number,
       success: true,
       command: "initialize",
       body: { supportsConfigurationDoneRequest: true },
@@ -71,7 +71,7 @@ describe("DapClient", () => {
 
     const seq1 = parseSent(transport, 0)["seq"] as number;
     const seq2 = parseSent(transport, 1)["seq"] as number;
-    expect(seq2).toBe(seq1 + 1);
+    expect(seq2).toBe((seq1 as number) + 1);
 
     // Resolve both
     transport._triggerMessage({ seq: 1, type: "response", request_seq: seq1, success: true, command: "initialize", body: {} });

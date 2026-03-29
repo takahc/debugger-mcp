@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { IDebugSession } from "../dap/types.js";
+import type { IDebugSession, SessionSnapshot } from "../dap/types.js";
 
 export interface SessionFactory {
   createSession(
@@ -43,6 +43,7 @@ export class ToolDispatcher {
         case "debug_evaluate":          return await this.evaluate(args);
         case "debug_get_source":        return await this.getSource(args);
         case "debug_stop":              return await this.stop(args);
+        case "debug_list_sessions":     return this.listSessions();
         default:                        return err(`Unknown tool: ${name}`);
       }
     } catch (e) {
@@ -58,22 +59,7 @@ export class ToolDispatcher {
 
   private registerSession(session: IDebugSession): void {
     this.sessions.set(session.id, session);
-    // Auto-remove terminated sessions
-    const snap = () => {
-      if (session.snapshot().state === "terminated") {
-        this.sessions.delete(session.id);
-      }
-    };
-    // Poll lazily — state changes are surfaced when tools are called
-    const interval = setInterval(snap, 5000);
-    // Clean up interval after termination
-    const checkOnce = () => {
-      if (session.snapshot().state === "terminated") {
-        clearInterval(interval);
-        this.sessions.delete(session.id);
-      }
-    };
-    setInterval(checkOnce, 1000);
+    session.onTerminated(() => this.sessions.delete(session.id));
   }
 
   private async launch(args: Record<string, unknown>): Promise<McpToolResult> {
@@ -81,13 +67,12 @@ export class ToolDispatcher {
     const adapter = args["adapter"] as "python" | "node";
     const session = await this.factory.createSession(id, adapter, args);
     this.registerSession(session);
-
-    // launch is called on DebugSession after factory init
-    if ("launch" in session && typeof session.launch === "function") {
-      await (session as unknown as { launch: (a: Record<string, unknown>) => Promise<void> }).launch(args);
-    }
-
-    return ok({ sessionId: id, status: "launched", message: "Session started. Set breakpoints then use debug_continue." });
+    await session.launch(args);
+    return ok({
+      sessionId: id,
+      status: "launched",
+      message: "Session started. Set breakpoints with debug_set_breakpoint, then use debug_continue.",
+    });
   }
 
   private async attach(args: Record<string, unknown>): Promise<McpToolResult> {
@@ -95,11 +80,7 @@ export class ToolDispatcher {
     const adapter = args["adapter"] as "python" | "node";
     const session = await this.factory.createSession(id, adapter, args);
     this.registerSession(session);
-
-    if ("attach" in session && typeof session.attach === "function") {
-      await (session as unknown as { attach: (a: Record<string, unknown>) => Promise<void> }).attach(args);
-    }
-
+    await session.attach(args);
     return ok({ sessionId: id, status: "attached" });
   }
 
@@ -113,8 +94,8 @@ export class ToolDispatcher {
   }
 
   private async removeBreakpoint(args: Record<string, unknown>): Promise<McpToolResult> {
-    const s = this.getSession(args["sessionId"] as string);
-    await s.removeBreakpoints({ path: args["file"] as string });
+    await this.getSession(args["sessionId"] as string)
+      .removeBreakpoints({ path: args["file"] as string });
     return ok({ removed: true });
   }
 
@@ -122,8 +103,9 @@ export class ToolDispatcher {
     method: "continue" | "stepOver" | "stepInto" | "stepOut",
     args: Record<string, unknown>,
   ): Promise<McpToolResult> {
-    const s = this.getSession(args["sessionId"] as string);
-    await s[method](args["threadId"] as number | undefined);
+    await this.getSession(args["sessionId"] as string)[method](
+      args["threadId"] as number | undefined,
+    );
     return ok({ status: method === "continue" ? "running" : "stepping" });
   }
 
@@ -159,9 +141,8 @@ export class ToolDispatcher {
     return ok({ status: "terminated" });
   }
 
-  /** List all active session IDs and their states. */
   listSessions(): McpToolResult {
-    const sessions = [...this.sessions.values()].map((s) => s.snapshot());
+    const sessions: SessionSnapshot[] = [...this.sessions.values()].map((s) => s.snapshot());
     return ok({ sessions });
   }
 }

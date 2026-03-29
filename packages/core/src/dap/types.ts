@@ -76,6 +76,12 @@ export interface SessionSnapshot {
 
 export interface IDebugSession {
   readonly id: string;
+  /** Start a new debug process. Called once after createSession(). */
+  launch(config: Record<string, unknown>): Promise<void>;
+  /** Attach to an already-running debug process. Called once after createSession(). */
+  attach(config: Record<string, unknown>): Promise<void>;
+  /** Register a handler that fires exactly once when the session terminates. */
+  onTerminated(handler: () => void): void;
   setBreakpoints(source: { path?: string }, lines: number[]): Promise<unknown>;
   removeBreakpoints(source: { path?: string }): Promise<void>;
   continue(threadId?: number): Promise<void>;

@@ -121,4 +121,9 @@ export const TOOL_DEFINITIONS = [
     description: "Terminate the debug session",
     schema: SessionOnlySchema,
   },
+  {
+    name: "debug_list_sessions" as const,
+    description: "List all active debug sessions and their current state",
+    schema: z.object({}),
+  },
 ] as const;

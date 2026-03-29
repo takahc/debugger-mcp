@@ -3,8 +3,8 @@ import { TOOL_DEFINITIONS } from "../tools/definitions.js";
 import { z } from "zod";
 
 describe("TOOL_DEFINITIONS", () => {
-  it("defines exactly 13 tools", () => {
-    expect(TOOL_DEFINITIONS).toHaveLength(13);
+  it("defines exactly 14 tools", () => {
+    expect(TOOL_DEFINITIONS).toHaveLength(14);
   });
 
   it("all tools have unique names", () => {

@@ -28,6 +28,12 @@ export class VscodeDebugSessionAdapter implements IDebugSession {
     return this.vsSession.customRequest(command, args);
   }
 
+  // VSCode handles launch/attach via startDebugging() in VscodeSessionFactory.
+  // These are no-ops here because the session is already running by the time
+  // the adapter is returned from createSession().
+  async launch(_config: Record<string, unknown>): Promise<void> {}
+  async attach(_config: Record<string, unknown>): Promise<void> {}
+
   async setBreakpoints(source: { path?: string }, lines: number[]): Promise<DP.Breakpoint[]> {
     const r = await this.req<DP.SetBreakpointsResponse["body"]>("setBreakpoints", {
       source,
@@ -115,6 +121,13 @@ export class VscodeDebugSessionAdapter implements IDebugSession {
     this._state = "terminated";
   }
 
+  /** Register a one-time handler that fires when the session terminates. */
+  onTerminated(handler: () => void): void {
+    this._terminatedHandlers.push(handler);
+  }
+
+  private _terminatedHandlers: Array<() => void> = [];
+
   /** Called by the extension when a stopped event arrives for this session. */
   onStopped(threadId: number): void {
     this._state = "paused";
@@ -123,8 +136,10 @@ export class VscodeDebugSessionAdapter implements IDebugSession {
   }
 
   /** Called by the extension when the session terminates. */
-  onTerminated(): void {
+  onTerminated_internal(): void {
     this._state = "terminated";
+    for (const h of this._terminatedHandlers) h();
+    this._terminatedHandlers = [];
   }
 
   snapshot(): SessionSnapshot {
@@ -138,49 +153,23 @@ export class VscodeDebugSessionAdapter implements IDebugSession {
 }
 
 /**
- * SessionFactory for the VSCode extension.
- * When debug_launch is called, it starts a VSCode debug session using
- * vscode.debug.startDebugging(), then wraps it in VscodeDebugSessionAdapter.
+ * Manages the mapping between MCP session IDs and VSCode debug sessions.
  */
 export class VscodeSessionFactory {
   private adapters = new Map<string, VscodeDebugSessionAdapter>();
 
-  async createAndLaunch(
-    id: string,
-    config: Record<string, unknown>,
-  ): Promise<VscodeDebugSessionAdapter> {
-    const adapter = config["adapter"] as "python" | "node";
-    const launchConfig: vscode.DebugConfiguration = this.buildLaunchConfig(adapter, config);
-
-    const started = await vscode.debug.startDebugging(undefined, launchConfig);
-    if (!started) throw new Error("Failed to start debug session");
-
-    const vsSession = vscode.debug.activeDebugSession;
-    if (!vsSession) throw new Error("No active debug session after start");
-
-    const sessionAdapter = new VscodeDebugSessionAdapter(id, vsSession);
-    this.adapters.set(vsSession.id, sessionAdapter);
-
-    return sessionAdapter;
+  /**
+   * Create a deferred adapter whose underlying VSCode session is populated
+   * when launch() or attach() is called on the adapter.
+   */
+  createDeferred(id: string, config: Record<string, unknown>): DeferredVscodeAdapter {
+    const adapter = new DeferredVscodeAdapter(id, config, this);
+    return adapter;
   }
 
-  async createAndAttach(
-    id: string,
-    config: Record<string, unknown>,
-  ): Promise<VscodeDebugSessionAdapter> {
-    const adapter = config["adapter"] as "python" | "node";
-    const attachConfig: vscode.DebugConfiguration = this.buildAttachConfig(adapter, config);
-
-    const started = await vscode.debug.startDebugging(undefined, attachConfig);
-    if (!started) throw new Error("Failed to attach to debug session");
-
-    const vsSession = vscode.debug.activeDebugSession;
-    if (!vsSession) throw new Error("No active debug session after attach");
-
-    const sessionAdapter = new VscodeDebugSessionAdapter(id, vsSession);
-    this.adapters.set(vsSession.id, sessionAdapter);
-
-    return sessionAdapter;
+  /** Called by DeferredVscodeAdapter after a VSCode session starts. */
+  register(vscodeSessionId: string, adapter: VscodeDebugSessionAdapter): void {
+    this.adapters.set(vscodeSessionId, adapter);
   }
 
   getByVscodeId(vscodeSessionId: string): VscodeDebugSessionAdapter | undefined {
@@ -191,15 +180,10 @@ export class VscodeSessionFactory {
     this.adapters.delete(vscodeSessionId);
   }
 
-  private buildLaunchConfig(
-    adapter: "python" | "node",
-    config: Record<string, unknown>,
-  ): vscode.DebugConfiguration {
+  buildLaunchConfig(adapter: "python" | "node", config: Record<string, unknown>): vscode.DebugConfiguration {
     if (adapter === "python") {
       return {
-        type: "debugpy",
-        request: "launch",
-        name: "Debugger MCP: Python",
+        type: "debugpy", request: "launch", name: "Debugger MCP: Python",
         program: config["program"] as string,
         args: (config["args"] as string[] | undefined) ?? [],
         cwd: config["cwd"] as string | undefined,
@@ -207,42 +191,111 @@ export class VscodeSessionFactory {
         stopOnEntry: (config["stopOnEntry"] as boolean | undefined) ?? false,
         python: config["pythonPath"] as string | undefined,
       };
-    } else {
-      return {
-        type: "node",
-        request: "launch",
-        name: "Debugger MCP: Node",
-        program: config["program"] as string,
-        args: (config["args"] as string[] | undefined) ?? [],
-        cwd: config["cwd"] as string | undefined,
-        env: config["env"] as Record<string, string> | undefined,
-        stopOnEntry: (config["stopOnEntry"] as boolean | undefined) ?? false,
-      };
     }
+    return {
+      type: "node", request: "launch", name: "Debugger MCP: Node",
+      program: config["program"] as string,
+      args: (config["args"] as string[] | undefined) ?? [],
+      cwd: config["cwd"] as string | undefined,
+      env: config["env"] as Record<string, string> | undefined,
+      stopOnEntry: (config["stopOnEntry"] as boolean | undefined) ?? false,
+    };
   }
 
-  private buildAttachConfig(
-    adapter: "python" | "node",
-    config: Record<string, unknown>,
-  ): vscode.DebugConfiguration {
+  buildAttachConfig(adapter: "python" | "node", config: Record<string, unknown>): vscode.DebugConfiguration {
     const host = (config["host"] as string | undefined) ?? "127.0.0.1";
     const port = config["port"] as number;
-
     if (adapter === "python") {
-      return {
-        type: "debugpy",
-        request: "attach",
-        name: "Debugger MCP: Attach Python",
-        connect: { host, port },
-      };
-    } else {
-      return {
-        type: "node",
-        request: "attach",
-        name: "Debugger MCP: Attach Node",
-        address: host,
-        port,
-      };
+      return { type: "debugpy", request: "attach", name: "Debugger MCP: Attach Python", connect: { host, port } };
     }
+    return { type: "node", request: "attach", name: "Debugger MCP: Attach Node", address: host, port };
+  }
+}
+
+  getByVscodeId(vscodeSessionId: string): VscodeDebugSessionAdapter | undefined {
+    return this.adapters.get(vscodeSessionId);
+  }
+
+  removeByVscodeId(vscodeSessionId: string): void {
+    this.adapters.delete(vscodeSessionId);
+  }
+
+}
+
+/**
+ * A proxy IDebugSession that defers the actual VSCode session start until
+ * launch() or attach() is called.  All debug commands are forwarded to
+ * an inner VscodeDebugSessionAdapter once the session is live.
+ */
+export class DeferredVscodeAdapter implements IDebugSession {
+  readonly id: string;
+  private inner: VscodeDebugSessionAdapter | undefined;
+  private _terminatedHandlers: Array<() => void> = [];
+
+  constructor(
+    id: string,
+    private config: Record<string, unknown>,
+    private factory: VscodeSessionFactory,
+  ) {
+    this.id = id;
+  }
+
+  private get live(): VscodeDebugSessionAdapter {
+    if (!this.inner) throw new Error(`Session ${this.id} not yet started`);
+    return this.inner;
+  }
+
+  private async startVscode(request: "launch" | "attach"): Promise<void> {
+    const adapterType = this.config["adapter"] as "python" | "node";
+    const debugConfig =
+      request === "launch"
+        ? this.factory.buildLaunchConfig(adapterType, this.config)
+        : this.factory.buildAttachConfig(adapterType, this.config);
+
+    const started = await vscode.debug.startDebugging(undefined, debugConfig);
+    if (!started) throw new Error(`Failed to ${request} debug session`);
+
+    const vsSession = vscode.debug.activeDebugSession;
+    if (!vsSession) throw new Error("No active debug session after start");
+
+    this.inner = new VscodeDebugSessionAdapter(this.id, vsSession);
+    this.factory.register(vsSession.id, this.inner);
+
+    // Forward registered terminated handlers
+    for (const h of this._terminatedHandlers) this.inner.onTerminated(h);
+    this._terminatedHandlers = [];
+  }
+
+  async launch(config: Record<string, unknown>): Promise<void> {
+    this.config = { ...this.config, ...config };
+    await this.startVscode("launch");
+  }
+
+  async attach(config: Record<string, unknown>): Promise<void> {
+    this.config = { ...this.config, ...config };
+    await this.startVscode("attach");
+  }
+
+  onTerminated(handler: () => void): void {
+    if (this.inner) { this.inner.onTerminated(handler); }
+    else { this._terminatedHandlers.push(handler); }
+  }
+
+  setBreakpoints(source: { path?: string }, lines: number[]) { return this.live.setBreakpoints(source, lines); }
+  removeBreakpoints(source: { path?: string })               { return this.live.removeBreakpoints(source); }
+  continue(threadId?: number)                                { return this.live.continue(threadId); }
+  stepOver(threadId?: number)                                { return this.live.stepOver(threadId); }
+  stepInto(threadId?: number)                                { return this.live.stepInto(threadId); }
+  stepOut(threadId?: number)                                 { return this.live.stepOut(threadId); }
+  getStackTrace(threadId?: number)                           { return this.live.getStackTrace(threadId); }
+  getVariables(frameId: number)                              { return this.live.getVariables(frameId); }
+  evaluate(expression: string, frameId?: number)             { return this.live.evaluate(expression, frameId); }
+  getSource(sourceReference: number)                         { return this.live.getSource(sourceReference); }
+  disconnect()                                               { return this.live.disconnect(); }
+
+  snapshot(): SessionSnapshot {
+    return this.inner?.snapshot() ?? {
+      id: this.id, state: "idle", threadId: undefined, stackFrames: [],
+    };
   }
 }

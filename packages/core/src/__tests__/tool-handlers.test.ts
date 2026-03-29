@@ -23,6 +23,7 @@ function createMockSession(id: string): IDebugSession & { _state: string } {
       { name: "x", value: "42", type: "int", variablesReference: 0 },
     ] satisfies Variable[]),
     evaluate: vi.fn().mockResolvedValue("42"),
+    onTerminated: vi.fn(),
     getSource: vi.fn().mockResolvedValue({
       content: "def main():\n    pass\n",
     } satisfies SourceContent),
@@ -232,6 +233,56 @@ describe("ToolDispatcher", () => {
     });
   });
 
+  // ── debug_list_sessions ────────────────────────────────────────────────
+
+  describe("debug_list_sessions", () => {
+    it("returns empty array when no sessions are active", async () => {
+      const result = await dispatcher.dispatch("debug_list_sessions", {});
+      const data = parseResult(result) as { sessions: unknown[] };
+      expect(Array.isArray(data.sessions)).toBe(true);
+      expect(data.sessions).toHaveLength(0);
+    });
+
+    it("lists all active sessions with their state", async () => {
+      await dispatcher.dispatch("debug_launch", { adapter: "python", program: "/a.py" });
+      await dispatcher.dispatch("debug_launch", { adapter: "python", program: "/b.py" });
+      const result = await dispatcher.dispatch("debug_list_sessions", {});
+      const data = parseResult(result) as { sessions: Array<{ id: string; state: string }> };
+      expect(data.sessions).toHaveLength(2);
+      expect(data.sessions.every((s) => typeof s.id === "string")).toBe(true);
+    });
+
+    it("removes a session from the list after debug_stop", async () => {
+      const r = await dispatcher.dispatch("debug_launch", { adapter: "python", program: "/a.py" });
+      const { sessionId } = parseResult(r) as { sessionId: string };
+      await dispatcher.dispatch("debug_stop", { sessionId });
+      const list = await dispatcher.dispatch("debug_list_sessions", {});
+      const data = parseResult(list) as { sessions: unknown[] };
+      expect(data.sessions).toHaveLength(0);
+    });
+
+    it("auto-removes session when onTerminated fires", async () => {
+      let terminatedCb: (() => void) | undefined;
+      const autoFactory: SessionFactory = {
+        async createSession(id) {
+          return {
+            ...mockSession,
+            id,
+            onTerminated: vi.fn((cb: () => void) => { terminatedCb = cb; }),
+          };
+        },
+      };
+      const autoDispatcher = new ToolDispatcher(autoFactory);
+      await autoDispatcher.dispatch("debug_launch", { adapter: "python", program: "/a.py" });
+
+      terminatedCb?.();
+
+      const list = await autoDispatcher.dispatch("debug_list_sessions", {});
+      const data = parseResult(list) as { sessions: unknown[] };
+      expect(data.sessions).toHaveLength(0);
+    });
+  });
+
   // ── unknown tool ───────────────────────────────────────────────────────
 
   describe("unknown tool", () => {
@@ -251,6 +302,7 @@ describe("ToolDispatcher", () => {
           return {
             ...mockSession,
             id,
+            onTerminated: vi.fn(),
             getVariables: vi.fn().mockRejectedValue(new Error("DAP timeout")),
           };
         },
