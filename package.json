@@ -1,0 +1,12 @@
+{
+  "name": "debugger-mcp",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm -r --parallel run dev",
+    "clean": "pnpm -r run clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
